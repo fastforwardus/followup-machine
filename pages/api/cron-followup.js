@@ -1,6 +1,6 @@
-import { generateFollowUpEmail } from "../lib/anthropic.js";
-import { checkThreadForReply } from "../lib/gmail.js";
-import { supabase } from "../lib/supabase.js";
+import { generateFollowUpEmail } from "../../lib/anthropic.js";
+import { checkThreadForReply } from "../../lib/gmail.js";
+import { supabase } from "../../lib/supabase.js";
 
 const MAX_EMAILS = 4;
 const DAYS_BETWEEN_EMAILS = 3;
