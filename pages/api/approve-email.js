@@ -4,7 +4,7 @@ import { supabase } from "../../lib/supabase.js";
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { draftId, subject, body } = req.body;
+  const { draftId, subject, body, to } = req.body;
   if (!draftId) return res.status(400).json({ error: "No draftId" });
 
   const { data: draft, error } = await supabase
@@ -16,8 +16,6 @@ export default async function handler(req, res) {
 
   if (error || !draft) return res.status(404).json({ error: "Draft not found" });
 
-  const seq = draft.followup_sequences;
-
   const { data: lastSent } = await supabase
     .from("followup_emails_sent")
     .select("gmail_thread_id, gmail_message_id, subject")
@@ -27,12 +25,13 @@ export default async function handler(req, res) {
     .limit(1)
     .single();
 
+  const finalTo = to || draft.followup_sequences.prospect_email;
   const finalSubject = subject || draft.subject;
   const finalBody = body || draft.body;
 
   const { threadId, messageId } = await sendEmail({
-    to: seq.prospect_email,
-    subject: lastSent ? `Re: ${lastSent.subject}` : finalSubject,
+    to: finalTo,
+    subject: lastSent ? "Re: " + lastSent.subject : finalSubject,
     body: finalBody,
     threadId: lastSent?.gmail_thread_id,
     inReplyTo: lastSent?.gmail_message_id,
@@ -52,5 +51,5 @@ export default async function handler(req, res) {
     last_email_sent_at: new Date().toISOString(),
   }).eq("id", draft.sequence_id);
 
-  return res.status(200).json({ ok: true, sent_to: seq.prospect_email });
+  return res.status(200).json({ ok: true, sent_to: finalTo });
 }

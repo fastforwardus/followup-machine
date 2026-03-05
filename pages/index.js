@@ -10,6 +10,7 @@ export default function ReviewDrafts() {
   const [selected, setSelected] = useState(null);
   const [editSubject, setEditSubject] = useState("");
   const [editBody, setEditBody] = useState("");
+  const [editTo, setEditTo] = useState("");
   const [sending, setSending] = useState(false);
   const [toast, setToast] = useState(null);
 
@@ -27,6 +28,7 @@ export default function ReviewDrafts() {
     setSelected(draft);
     setEditSubject(draft.subject);
     setEditBody(draft.body);
+    setEditTo(draft.followup_sequences?.prospect_email || "");
   }
 
   async function sendDraft() {
@@ -35,15 +37,15 @@ export default function ReviewDrafts() {
       const res = await fetch("/api/approve-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ draftId: selected.id, subject: editSubject, body: editBody }),
+        body: JSON.stringify({ draftId: selected.id, subject: editSubject, body: editBody, to: editTo }),
       });
       const data = await res.json();
       if (data.ok) {
-        showToast(`✓ Enviado a ${data.sent_to}`);
+        showToast("✓ Enviado a " + data.sent_to);
         setSelected(null);
         fetchDrafts();
       } else {
-        showToast("Error al enviar");
+        showToast("Error: " + (data.error || "desconocido"));
       }
     } finally {
       setSending(false);
@@ -64,7 +66,7 @@ export default function ReviewDrafts() {
 
   const EmailPreview = ({ subject, body }) => (
     <div style={{ fontFamily: "'Trebuchet MS', sans-serif", border: "1px solid #e8e8e8", borderRadius: "4px", overflow: "hidden" }}>
-      <div style={{ background: `linear-gradient(160deg, #1a1c4a 0%, ${NAVY} 50%, #3a3c7a 100%)`, padding: "24px 28px" }}>
+      <div style={{ background: "linear-gradient(160deg, #1a1c4a 0%, " + NAVY + " 50%, #3a3c7a 100%)", padding: "24px 28px" }}>
         <img src={LOGO} alt="FastForward" style={{ height: "20px", display: "block", marginBottom: "12px" }} />
         <div style={{ fontSize: "16px", color: "#fff", fontWeight: "700", lineHeight: "1.3" }}>{subject}</div>
         <div style={{ width: "28px", height: "2px", background: GOLD, marginTop: "10px" }} />
@@ -85,6 +87,13 @@ export default function ReviewDrafts() {
     </div>
   );
 
+  const inputStyle = {
+    width: "100%", boxSizing: "border-box",
+    border: "1px solid #e0e0e0", padding: "10px 12px",
+    fontSize: "14px", color: "#333", marginBottom: "16px",
+    outline: "none", fontFamily: "inherit",
+  };
+
   return (
     <div style={{ background: "#f5f6fa", minHeight: "100vh", fontFamily: "'Helvetica Neue', Helvetica, sans-serif" }}>
 
@@ -94,9 +103,9 @@ export default function ReviewDrafts() {
         <div style={{ color: GOLD, fontSize: "10px", letterSpacing: "3px" }}>REVISIÓN DE CORREOS</div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: selected ? "340px 1fr" : "1fr", gap: "0", minHeight: "calc(100vh - 56px)" }}>
+      <div style={{ display: "grid", gridTemplateColumns: selected ? "300px 1fr" : "1fr", minHeight: "calc(100vh - 56px)" }}>
 
-        {/* Lista de borradores */}
+        {/* Lista */}
         <div style={{ background: "#fff", borderRight: "1px solid #e8e8e8", padding: "24px" }}>
           <div style={{ fontSize: "11px", color: "#aaa", letterSpacing: "3px", marginBottom: "20px" }}>
             PENDIENTES ({drafts.length})
@@ -115,10 +124,9 @@ export default function ReviewDrafts() {
               key={d.id}
               onClick={() => selectDraft(d)}
               style={{
-                padding: "16px",
-                marginBottom: "8px",
-                border: `1px solid ${selected?.id === d.id ? NAVY : "#eee"}`,
-                borderLeft: `3px solid ${selected?.id === d.id ? GOLD : "#eee"}`,
+                padding: "14px", marginBottom: "8px",
+                border: "1px solid " + (selected?.id === d.id ? NAVY : "#eee"),
+                borderLeft: "3px solid " + (selected?.id === d.id ? GOLD : "#eee"),
                 cursor: "pointer",
                 background: selected?.id === d.id ? "#f8f9ff" : "#fff",
                 transition: "all 0.15s",
@@ -135,54 +143,43 @@ export default function ReviewDrafts() {
               <div style={{ fontSize: "13px", color: "#333", fontWeight: "500", marginBottom: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {d.followup_sequences?.prospect_name || d.followup_sequences?.prospect_email}
               </div>
-              <div style={{ fontSize: "12px", color: "#888", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {d.subject}
+              <div style={{ fontSize: "11px", color: "#aaa", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                → {d.followup_sequences?.prospect_email}
               </div>
             </div>
           ))}
         </div>
 
-        {/* Panel de edición y preview */}
+        {/* Editor + Preview */}
         {selected && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0", background: "#f5f6fa" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
 
             {/* Editor */}
-            <div style={{ padding: "28px", borderRight: "1px solid #e8e8e8", background: "#fff" }}>
-              <div style={{ fontSize: "11px", color: "#aaa", letterSpacing: "3px", marginBottom: "20px" }}>
-                EDITOR
-              </div>
+            <div style={{ padding: "28px", borderRight: "1px solid #e8e8e8", background: "#fff", overflowY: "auto" }}>
+              <div style={{ fontSize: "11px", color: "#aaa", letterSpacing: "3px", marginBottom: "20px" }}>EDITOR</div>
 
               <div style={{ marginBottom: "6px", fontSize: "11px", color: "#888", letterSpacing: "1px" }}>PARA</div>
-              <div style={{ fontSize: "14px", color: NAVY, fontWeight: "600", marginBottom: "20px" }}>
-                {selected.followup_sequences?.prospect_email}
-              </div>
+              <input
+                value={editTo}
+                onChange={e => setEditTo(e.target.value)}
+                style={{ ...inputStyle, color: NAVY, fontWeight: "600" }}
+              />
 
               <div style={{ marginBottom: "6px", fontSize: "11px", color: "#888", letterSpacing: "1px" }}>ASUNTO</div>
               <input
                 value={editSubject}
                 onChange={e => setEditSubject(e.target.value)}
-                style={{
-                  width: "100%", boxSizing: "border-box",
-                  border: "1px solid #e0e0e0", padding: "10px 12px",
-                  fontSize: "14px", color: "#333", marginBottom: "20px",
-                  outline: "none", fontFamily: "inherit",
-                }}
+                style={inputStyle}
               />
 
               <div style={{ marginBottom: "6px", fontSize: "11px", color: "#888", letterSpacing: "1px" }}>CUERPO</div>
               <textarea
                 value={editBody}
                 onChange={e => setEditBody(e.target.value)}
-                style={{
-                  width: "100%", boxSizing: "border-box",
-                  border: "1px solid #e0e0e0", padding: "12px",
-                  fontSize: "14px", color: "#333", lineHeight: "1.7",
-                  height: "280px", resize: "vertical", outline: "none",
-                  fontFamily: "inherit",
-                }}
+                style={{ ...inputStyle, height: "260px", resize: "vertical", lineHeight: "1.7", marginBottom: "20px" }}
               />
 
-              <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+              <div style={{ display: "flex", gap: "10px" }}>
                 <button
                   onClick={sendDraft}
                   disabled={sending}
@@ -209,10 +206,8 @@ export default function ReviewDrafts() {
             </div>
 
             {/* Preview */}
-            <div style={{ padding: "28px", overflowY: "auto" }}>
-              <div style={{ fontSize: "11px", color: "#aaa", letterSpacing: "3px", marginBottom: "20px" }}>
-                PREVIEW
-              </div>
+            <div style={{ padding: "28px", overflowY: "auto", background: "#f5f6fa" }}>
+              <div style={{ fontSize: "11px", color: "#aaa", letterSpacing: "3px", marginBottom: "20px" }}>PREVIEW</div>
               <EmailPreview subject={editSubject} body={editBody} />
             </div>
 
@@ -220,12 +215,11 @@ export default function ReviewDrafts() {
         )}
       </div>
 
-      {/* Toast */}
       {toast && (
         <div style={{
           position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)",
           background: NAVY, color: "#fff", padding: "12px 28px",
-          fontSize: "13px", letterSpacing: "1px", borderLeft: `3px solid ${GOLD}`,
+          fontSize: "13px", letterSpacing: "1px", borderLeft: "3px solid " + GOLD,
           boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
         }}>
           {toast}
