@@ -1,10 +1,10 @@
-import { sendEmail } from "../../lib/gmail.js";
+import { sendEmailWithAttachment } from "../../lib/gmail.js";
 import { supabase } from "../../lib/supabase.js";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { draftId, subject, body, to } = req.body;
+  const { draftId, subject, body, to, attachmentUrl, attachmentFilename } = req.body;
   if (!draftId) return res.status(400).json({ error: "No draftId" });
 
   const { data: draft, error } = await supabase
@@ -29,13 +29,26 @@ export default async function handler(req, res) {
   const finalSubject = subject || draft.subject;
   const finalBody = body || draft.body;
 
-  const { threadId, messageId } = await sendEmail({
+  // Descargar PDF si viene adjunto
+  let attachmentData = null;
+  if (attachmentUrl && attachmentFilename) {
+    const pdfRes = await fetch(attachmentUrl);
+    const buffer = await pdfRes.arrayBuffer();
+    attachmentData = {
+      filename: attachmentFilename,
+      data: Buffer.from(buffer).toString("base64"),
+      mimeType: "application/pdf",
+    };
+  }
+
+  const { threadId, messageId } = await sendEmailWithAttachment({
     to: finalTo,
     subject: lastSent ? "Re: " + lastSent.subject : finalSubject,
     body: finalBody,
     threadId: lastSent?.gmail_thread_id,
     inReplyTo: lastSent?.gmail_message_id,
     references: lastSent?.gmail_message_id,
+    attachment: attachmentData,
   });
 
   await supabase.from("followup_emails_sent").update({
